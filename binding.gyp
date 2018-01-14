@@ -58,6 +58,14 @@
             "cflags_cc": [
                 "-std=c++0x"
             ],
+            'conditions': [
+                ['OS == "mac"', {
+	            'xcode_settings': {
+                      'OTHER_CFLAGS': ['-no-integrated-as']
+	             }
+	          }
+                ]
+            ],
         }
     ]
 }
