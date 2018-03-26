@@ -21,7 +21,7 @@ extern "C" {
     #include "cryptonight.h"
     #include "x13.h"
     #include "nist5.h"
-    #include "sha1.h",
+    #include "sha1.h"
     #include "x15.h"
 	#include "fresh.h"
 }
@@ -49,7 +49,7 @@ NAN_METHOD(quark) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     quark_hash(input, output, input_len);
@@ -86,18 +86,18 @@ NAN_METHOD(scrypt) {
 
    if(!node::Buffer::HasInstance(target))
        return except("Argument should be a buffer object.");
-    
+
    Local<Number> numn = info[1]->ToNumber();
    unsigned int nValue = numn->Value();
    Local<Number> numr = info[2]->ToNumber();
    unsigned int rValue = numr->Value();
-   
+
    char * input = node::Buffer::Data(target);
    Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
    char* output = node::Buffer::Data(dest.ToLocalChecked());
 
    uint32_t input_len = node::Buffer::Length(target);
-   
+
    scrypt_N_R_1_256(input, output, nValue, rValue, input_len);
 
    info.GetReturnValue().Set(dest.ToLocalChecked());
@@ -216,7 +216,7 @@ NAN_METHOD(skein) {
     char* output = node::Buffer::Data(dest.ToLocalChecked());
 
     uint32_t input_len = node::Buffer::Length(target);
-    
+
     skein_hash(input, output, input_len);
 
     info.GetReturnValue().Set(dest.ToLocalChecked());
@@ -235,7 +235,7 @@ NAN_METHOD(groestl) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     groestl_hash(input, output, input_len);
@@ -256,7 +256,7 @@ NAN_METHOD(groestlmyriad) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     groestlmyriad_hash(input, output, input_len);
@@ -277,7 +277,7 @@ NAN_METHOD(blake) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     blake_hash(input, output, input_len);
@@ -298,7 +298,7 @@ NAN_METHOD(fugue) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     fugue_hash(input, output, input_len);
@@ -319,7 +319,7 @@ NAN_METHOD(qubit) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     qubit_hash(input, output, input_len);
@@ -340,7 +340,7 @@ NAN_METHOD(hefty1) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     hefty1_hash(input, output, input_len);
@@ -361,7 +361,7 @@ NAN_METHOD(shavite3) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     shavite3_hash(input, output, input_len);
@@ -371,14 +371,20 @@ NAN_METHOD(shavite3) {
 
 NAN_METHOD(cryptonight) {
     bool fast = false;
+    uint32_t cn_variant = 0;
 
     if (info.Length() < 1)
         return except("You must provide one argument.");
-    
+
     if (info.Length() >= 2) {
-        if(!info[1]->IsBoolean())
-            return except("Argument 2 should be a boolean");
-        fast = info[1]->ToBoolean()->BooleanValue();
+        if (info.Length() >= 2) {
+            if(info[1]->IsBoolean())
+                fast = info[1]->ToBoolean()->BooleanValue();
+            else if(info[1]->IsUint32())
+                cn_variant = info[1]->ToUint32()->Uint32Value();
+            else
+                return except("Argument 2 should be a boolean or uint32_t");
+        }
     }
 
     Local<Object> target = info[0]->ToObject();
@@ -389,13 +395,56 @@ NAN_METHOD(cryptonight) {
     char * input = node::Buffer::Data(target);
     Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
     char* output = node::Buffer::Data(dest.ToLocalChecked());
-    
+
     uint32_t input_len = node::Buffer::Length(target);
 
     if(fast)
         cryptonight_fast_hash(input, output, input_len);
-    else
-        cryptonight_hash(input, output, input_len);
+    else {
+        if (cn_variant > 0 && input_len < 43)
+            return except("Argument must be 43 bytes for monero variant 1+");
+        cryptonight_hash(input, output, input_len, cn_variant, 0);
+    }
+
+    info.GetReturnValue().Set(dest.ToLocalChecked());
+}
+
+NAN_METHOD(cryptonightlite) {
+    bool fast = false;
+    uint32_t cn_variant = 0;
+
+    if (info.Length() < 1)
+        return except("You must provide one argument.");
+
+    if (info.Length() >= 2) {
+        if (info.Length() >= 2) {
+            if(info[1]->IsBoolean())
+                fast = info[1]->ToBoolean()->BooleanValue();
+            else if(info[1]->IsUint32())
+                cn_variant = info[1]->ToUint32()->Uint32Value();
+            else
+                return except("Argument 2 should be a boolean or uint32_t");
+        }
+    }
+
+    Local<Object> target = info[0]->ToObject();
+
+    if(!node::Buffer::HasInstance(target))
+        return except("Argument should be a buffer object.");
+
+    char * input = node::Buffer::Data(target);
+    Nan::MaybeLocal<v8::Object> dest = Nan::NewBuffer(32);
+    char* output = node::Buffer::Data(dest.ToLocalChecked());
+
+    uint32_t input_len = node::Buffer::Length(target);
+
+    if(fast)
+        cryptonight_fast_hash(input, output, input_len);
+    else {
+        if (cn_variant > 0 && input_len < 43)
+            return except("Argument must be 43 bytes for aeon variant 1+");
+        cryptonight_hash(input, output, input_len, cn_variant, 1);
+    }
 
     info.GetReturnValue().Set(dest.ToLocalChecked());
 }
@@ -566,6 +615,8 @@ NAN_MODULE_INIT(Init) {
         GetFunction(New<FunctionTemplate>(shavite3)).ToLocalChecked());
     Nan::Set(target, New<String>("cryptonight").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(cryptonight)).ToLocalChecked());
+    Nan::Set(target, New<String>("cryptonight-lite").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(cryptonightlite)).ToLocalChecked());
     Nan::Set(target, New<String>("x13").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(x13)).ToLocalChecked());
     Nan::Set(target, New<String>("boolberry").ToLocalChecked(),
